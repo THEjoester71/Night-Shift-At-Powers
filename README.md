@@ -1,5 +1,5 @@
 HOW TO PLAY THE GAME: READ ME PLEASE
-CLICK HERE OR COPY LINK TO OPEN WEBSITE IN NEW TAB file:///C:/Users/joeyb/Downloads/index.html
+CLICK HERE OR COPY LINK TO OPEN WEBSITE IN NEW TAB https://thejoester71.github.io/Night-Shift-At-Powers/
 OR -> In the "<Code>" Section of my github page there will be something on the bottom right corner titled, "DEPLOYMENTS". -> CLICK "github-pages" -> THEN AROUND THE TOP OF THE PAGE THERE WILL BE THE HTTPS game link. -> CLICK IT, then you'll be able to play :) write me comments if you need help. NOT disclosing who I am or what grade I am in.
 # Night-Shift-At-Powers
 A Five Nights at Freddys based game where the animatronics are.. Tim Powers..?
