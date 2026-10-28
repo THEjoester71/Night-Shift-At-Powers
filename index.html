@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Night Shift</title>
+<style>
+:root{--fg:#e8e8e8;--dim:#8a8a8a;--red:#e01d1d;--green:#6fe36f}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#000;color:var(--fg);font-family:"Courier New",Courier,monospace;overflow:hidden;user-select:none;-webkit-user-select:none}
+button{font-family:inherit;cursor:pointer}
+
+/* ---------- screens ---------- */
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#000;z-index:50;text-align:center;padding:16px;overflow:auto}
+.screen.show{display:flex}
+.menuBtn{background:none;border:none;color:var(--fg);font-size:22px;padding:6px 14px;letter-spacing:2px}
+.menuBtn:hover,.menuBtn:focus{color:#fff;text-shadow:0 0 8px #fff;outline:none}
+.menuBtn:hover::before{content:">> "}
+h1.title{font-size:clamp(30px,7vw,72px);letter-spacing:5px;animation:flick 5s infinite;z-index:1}
+#menu .sub{color:var(--dim);z-index:1}
+#menu .btns{display:flex;flex-direction:column;align-items:flex-start;z-index:1}
+#menuBg{position:absolute;right:0;top:0;height:100%;width:55%;object-fit:cover;opacity:.28;filter:grayscale(1) contrast(1.4);-webkit-mask-image:linear-gradient(90deg,transparent,#000 60%);mask-image:linear-gradient(90deg,transparent,#000 60%);animation:twitch 7s infinite}
+@keyframes flick{0%,92%,100%{opacity:1}93%{opacity:.2}95%{opacity:.9}96%{opacity:.3}}
+@keyframes twitch{0%,88%,100%{transform:none;opacity:.28}89%{transform:translate(8px,-4px) scale(1.04);opacity:.5}91%{transform:translate(-6px,2px);opacity:.15}}
+
+/* setup + custom */
+.cards{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;max-width:980px}
+.card{background:#111;border:1px solid #333;border-radius:8px;padding:12px;width:210px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.card img{width:150px;height:190px;object-fit:cover;border-radius:4px;background:#000}
+.card input[type=text],#titleIn{background:#000;color:var(--fg);border:1px solid #555;padding:6px;font-family:inherit;width:100%;text-align:center}
+.card .role{font-size:11px;color:var(--dim);min-height:28px}
+.card label.up{background:#2a2a2a;border:1px solid #666;padding:6px 10px;font-size:13px;cursor:pointer;width:100%}
+.card label.up input{display:none}
+.small{font-size:12px;color:var(--dim);max-width:640px;line-height:1.5}
+.small code{color:#ccc}
+.card input[type=range]{width:100%}
+.aiVal{font-size:28px}
+
+/* ---------- game ---------- */
+#game{position:fixed;inset:0;display:none;background:#000}
+#game.show{display:block}
+#office{position:absolute;inset:0;display:grid;grid-template-columns:72px 1fr 1.3fr 1fr 72px;gap:12px;padding:64px 14px 70px;background:radial-gradient(ellipse at 50% 60%,#2a2620 0%,#121110 55%,#050505 100%)}
+.panel{display:flex;flex-direction:column;gap:20px;justify-content:center;align-items:center;background:#141414;border:2px solid #2a2a2a;border-radius:6px;align-self:center;padding:18px 0}
+.panel button{width:54px;height:54px;border-radius:50%;border:3px solid #444;color:#ddd;font-size:10px;font-weight:bold}
+.bd{background:#3a0d0d}
+.bd.on{background:var(--red);box-shadow:0 0 16px #f33}
+.bl{background:#2b2b2b}
+.bl.on{background:#f2f2f2;color:#000;box-shadow:0 0 16px #fff}
+.panel button.dead{opacity:.3;cursor:not-allowed}
+.doorway{position:relative;background:#030303;border:8px solid #1d1b18;border-bottom:none;overflow:hidden;align-self:stretch}
+.doorway.lit{background:radial-gradient(ellipse at 50% 70%,#8a8166 0%,#3b3628 45%,#0d0c09 85%)}
+.lurker{position:absolute;bottom:0;left:6%;width:88%;height:86%;object-fit:cover;display:none;filter:grayscale(.45) contrast(1.35) brightness(.55) sepia(.3);-webkit-mask-image:radial-gradient(ellipse 50% 55% at 50% 45%,#000 55%,transparent 100%);mask-image:radial-gradient(ellipse 50% 55% at 50% 45%,#000 55%,transparent 100%);z-index:1}
+.doorway.lit .lurker.on{display:block}
+#dwL.po{background:radial-gradient(ellipse at 50% 45%,#1a1712 0%,#030303 70%)}
+#dwL.po .lurker{display:block;animation:pflick .35s steps(2) infinite;filter:grayscale(1) brightness(.4) contrast(1.6)}
+@keyframes pflick{0%{opacity:.85}50%{opacity:.05}}
+.shutter{position:absolute;left:0;right:0;top:0;height:0;background:repeating-linear-gradient(0deg,#3d3d3d 0 14px,#262626 14px 18px);transition:height .22s ease-in;border-bottom:5px solid #111;z-index:2}
+.shutter.closed{height:100%}
+#center{display:flex;flex-direction:column;justify-content:space-between;align-items:center;min-width:0}
+#poster{margin-top:4%;background:#d9d2b8;padding:8px 8px 4px;transform:rotate(-3deg);box-shadow:0 4px 12px #000;display:flex;flex-direction:column;align-items:center;filter:brightness(.55)}
+#poster img{width:110px;height:130px;object-fit:cover;filter:grayscale(.3)}
+#poster span{color:#7a1010;font-weight:bold;font-size:18px;letter-spacing:3px}
+#desk{width:100%;height:32%;background:linear-gradient(#3a3128,#1b1612);border-top:6px solid #4a3f33;display:flex;justify-content:space-around;align-items:center;filter:brightness(.7)}
+#monitor{width:30%;height:60%;background:#0d1410;border:5px solid #222;box-shadow:inset 0 0 18px #1f3}
+#fan{width:70px;height:70px;border-radius:50%;border:4px solid #333;display:flex;align-items:center;justify-content:center}
+.blades{width:56px;height:56px;border-radius:50%;background:conic-gradient(#555 0 22deg,transparent 22deg 120deg,#555 120deg 142deg,transparent 142deg 240deg,#555 240deg 262deg,transparent 262deg);animation:spin .14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#dark{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .4s;z-index:5}
+#game.po #dark{opacity:.55}
+#game.po2 #dark{opacity:.97}
+#game.po .blades{animation-duration:2s}
+
+#hudTop{position:absolute;top:10px;right:16px;text-align:right;z-index:25;text-shadow:0 0 6px #000}
+#clock{font-size:30px}
+#nightLbl{font-size:16px;color:#ccc}
+#hudBot{position:absolute;left:16px;bottom:12px;z-index:25;font-size:15px;line-height:1.5;text-shadow:0 0 6px #000}
+#usage span{display:inline-block;width:12px;height:16px;margin-right:3px;vertical-align:middle}
+#camBtn{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:min(46vw,480px);height:44px;z-index:30;background:rgba(255,255,255,.07);border:2px solid #888;color:#ddd;font-size:15px;letter-spacing:3px}
+#camBtn:hover{background:rgba(255,255,255,.16)}
+#topBtns{position:absolute;top:10px;left:12px;z-index:30;display:flex;gap:8px}
+#topBtns button{background:rgba(0,0,0,.5);border:1px solid #555;color:#ccc;padding:6px 10px;font-size:14px}
+
+/* cameras */
+#cams{position:absolute;inset:0;display:none;z-index:20;background:#000}
+#cams.show{display:block;animation:camIn .15s}
+@keyframes camIn{from{transform:scaleY(.1);opacity:0}}
+#camView{position:absolute;inset:0;overflow:hidden}
+#roomBg{position:absolute;inset:0}
+#camChars{position:absolute;inset:0;transition:opacity .1s}
+.cimg{position:absolute;bottom:6%;height:70%;aspect-ratio:3/4;object-fit:cover;transform:translateX(-50%);filter:grayscale(.55) contrast(1.35) brightness(.72) sepia(.22);-webkit-mask-image:radial-gradient(ellipse 50% 50% at 50% 48%,#000 58%,transparent 100%);mask-image:radial-gradient(ellipse 50% 50% at 50% 48%,#000 58%,transparent 100%);animation:camflick 4s infinite}
+.cimg.close{height:90%;bottom:0}
+.cimg.runner{height:85%;animation:runAt 1.4s linear forwards}
+@keyframes runAt{from{transform:translateX(-50%) scale(.35) translateY(-30%)}to{transform:translateX(-50%) scale(1.25)}}
+@keyframes camflick{0%,90%,100%{opacity:1}92%{opacity:.6}94%{opacity:1}96%{opacity:.4}}
+.cove{position:absolute;left:18%;right:18%;top:12%;bottom:0;background:radial-gradient(ellipse at 50% 60%,#1d1420,#060407)}
+.cove .cimg{left:50%;height:80%;bottom:0}
+.cove .cimg.s2{height:95%}
+.curtain{position:absolute;top:0;bottom:0;width:50%;background:repeating-linear-gradient(90deg,#3b1450 0 18px,#24092f 18px 34px);transition:width .3s;z-index:2;box-shadow:0 0 20px #000}
+.curtain.l{left:0}.curtain.r{right:0}
+.sign{position:absolute;left:50%;bottom:4%;transform:translateX(-50%) rotate(-4deg);background:#d8d0b0;color:#222;font-weight:bold;padding:6px 12px;font-size:14px;z-index:3;white-space:nowrap}
+#camNote{position:absolute;left:0;right:0;top:44%;text-align:center;font-size:20px;letter-spacing:2px;color:#ddd;text-shadow:0 0 8px #000}
+#static{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;opacity:.18;pointer-events:none;mix-blend-mode:screen}
+#scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.25) 0 2px,transparent 2px 4px)}
+#camLabel{position:absolute;top:56px;left:16px;font-size:20px;text-shadow:0 0 6px #000}
+#rec{position:absolute;top:84px;left:16px;color:#e33;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+#map{position:absolute;right:16px;bottom:66px;width:300px;height:240px;border:2px solid #777;background:rgba(0,0,0,.6)}
+#map button{position:absolute;width:52px;height:28px;font-size:12px;background:#333;color:#eee;border:2px solid #aaa}
+#map button.cur{background:#2a8a2a;border-color:#9f9}
+#map .you{position:absolute;left:41%;top:88%;font-size:11px;color:#fff;background:#555;padding:2px 4px}
+
+#intro{position:absolute;inset:0;background:#000;z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:16px}
+#intro.show{display:flex}
+#intro .big{font-size:42px}
+#js{position:absolute;inset:0;z-index:45;display:none;background:#000;overflow:hidden}
+#js.show{display:block}
+#js img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:contrast(1.6) saturate(1.5) brightness(1.1);animation:jsA .08s infinite,jsZ 1.8s ease-out forwards}
+#js::after{content:"";position:absolute;inset:0;background:rgba(200,0,0,.25);mix-blend-mode:multiply;animation:blink .12s steps(1) infinite}
+@keyframes jsA{0%{translate:0 0}25%{translate:-14px 8px}50%{translate:12px -10px}75%{translate:-8px -6px}}
+@keyframes jsZ{from{scale:.6}20%{scale:1.15}to{scale:1.3}}
+#over h2,#win h2{font-size:clamp(36px,8vw,80px);letter-spacing:6px}
+#over{background:#000 repeating-linear-gradient(0deg,#0a0a0a 0 2px,#000 2px 4px)}
+
+@media (max-width:760px){
+ #office{grid-template-columns:52px 1fr .7fr 1fr 52px;gap:6px;padding:58px 6px 64px}
+ .panel button{width:42px;height:42px;font-size:9px}
+ #poster{display:none}
+ #map{width:230px;height:190px;right:8px;bottom:60px}
+ #map button{width:40px;height:24px;font-size:10px}
+ #camBtn{width:60vw;font-size:12px}
+ #hudBot{font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ MENU ============ -->
+<div class="screen show" id="menu">
+  <img id="menuBg" alt="">
+  <h1 class="title" id="menuTitle">NIGHT SHIFT</h1>
+  <div class="sub">Survive five nights. 12 AM to 6 AM.</div>
+  <div class="btns">
+    <button class="menuBtn" id="mNew">New Game</button>
+    <button class="menuBtn" id="mCont">Continue</button>
+    <button class="menuBtn" id="mCustom">Custom Night</button>
+    <button class="menuBtn" id="mSetup">Set Up Photos</button>
+  </div>
+  <div class="small">Controls: Q / E = left / right door &nbsp;·&nbsp; A / D = left / right light &nbsp;·&nbsp; Space = cameras &nbsp;·&nbsp; M = mute</div>
+</div>
+
+<!-- ============ SETUP ============ -->
+<div class="screen" id="setup">
+  <h2>Set Up Your Animatronics</h2>
+  <div style="width:min(420px,90vw)"><input id="titleIn" maxlength="28" placeholder="Game title"></div>
+  <div class="cards" id="setupCards"></div>
+  <div class="small">Photos you pick here are saved only in this browser. To make them part of your GitHub site for everyone, put them in the repo as <code>images/1.jpg</code> … <code>images/4.jpg</code> (see README).</div>
+  <button class="menuBtn" id="setupBack">Back</button>
+</div>
+
+<!-- ============ CUSTOM NIGHT ============ -->
+<div class="screen" id="custom">
+  <h2>Custom Night</h2>
+  <div class="small">Set each animatronic's difficulty from 0 (never moves) to 20 (relentless).</div>
+  <div class="cards" id="customCards"></div>
+  <div><button class="menuBtn" id="cStart">Start</button><button class="menuBtn" id="cBack">Back</button></div>
+</div>
+
+<!-- ============ GAME OVER / WIN ============ -->
+<div class="screen" id="over">
+  <h2>GAME OVER</h2>
+  <div id="overMsg" class="small" style="font-size:16px"></div>
+  <div><button class="menuBtn" id="oRetry">Try Again</button><button class="menuBtn" id="oMenu">Menu</button></div>
+</div>
+<div class="screen" id="win">
+  <h2>6 AM</h2>
+  <div id="winMsg" class="small" style="font-size:16px"></div>
+  <div><button class="menuBtn" id="wNext">Next Night</button><button class="menuBtn" id="wMenu">Menu</button></div>
+</div>
+
+<!-- ============ GAME ============ -->
+<div id="game">
+  <div id="office">
+    <div class="panel"><button class="bd" id="bDoorL">DOOR</button><button class="bl" id="bLightL">LIGHT</button></div>
+    <div class="doorway" id="dwL"><img class="lurker" id="lurkL" alt=""><div class="shutter" id="shL"></div></div>
+    <div id="center">
+      <div id="poster"><img id="posterImg" alt=""><span>SMILE!</span></div>
+      <div id="desk"><div id="monitor"></div><div id="fan"><div class="blades"></div></div></div>
+    </div>
+    <div class="doorway" id="dwR"><img class="lurker" id="lurkR" alt=""><div class="shutter" id="shR"></div></div>
+    <div class="panel"><button class="bd" id="bDoorR">DOOR</button><button class="bl" id="bLightR">LIGHT</button></div>
+  </div>
+  <div id="dark"></div>
+
+  <div id="cams">
+    <div id="camView">
+      <div id="roomBg"></div>
+      <div id="camChars"></div>
+      <div id="camNote"></div>
+      <canvas id="static" width="160" height="90"></canvas>
+      <div id="scan"></div>
+      <div id="camLabel"></div>
+      <div id="rec">● REC</div>
+    </div>
+    <div id="map"><div class="you">YOU</div></div>
+  </div>
+
+  <div id="topBtns"><button id="quitBtn" title="Quit to menu">✕</button><button id="muteBtn" title="Mute (M)">🔊</button></div>
+  <div id="hudTop"><div id="clock">12 AM</div><div id="nightLbl">Night 1</div></div>
+  <div id="hudBot"><div>Power left: <b id="power">100%</b></div><div>Usage: <span id="usage"></span></div></div>
+  <button id="camBtn">▲ CAMERAS ▲</button>
+  <div id="intro"></div>
+  <div id="js"><img id="jsImg" alt=""></div>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG — edit this to customise the game for your GitHub repo
+   ===================================================================== */
+const CONFIG = {
+  title: "NIGHT SHIFT",
+  hourSeconds: 60,              // real seconds per in-game hour (6 hours per night)
+  characters: [
+    // img = file in your repo. If it's missing, a spooky placeholder is used.
+    { name: "ALPHA",   img: "images/1.jpg", hue: 30,  role: "Slow stalker. Comes to the RIGHT door. Only moves when you're NOT watching him on camera." },
+    { name: "BRAVO",   img: "images/2.jpg", hue: 220, role: "Wanderer. Comes down the WEST hall to the LEFT door." },
+    { name: "CHARLIE", img: "images/3.jpg", hue: 50,  role: "Wanderer. Goes through the kitchen to the RIGHT door." },
+    { name: "DELTA",   img: "images/4.jpg", hue: 0,   role: "Hides in the Cove. Sprints to the LEFT door if you ignore the cameras." }
+  ]
+};
+
+/* night difficulty: [alpha, bravo, charlie, delta]  (0–20) */
+const NIGHTS = {1:[0,2,1,0], 2:[0,3,2,1], 3:[1,5,4,2], 4:[2,7,6,5], 5:[3,10,10,8], 6:[5,15,15,12]};
+
+/* ===================================================================== */
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+const HOUR = CONFIG.hourSeconds;
+const ROLE = ['alpha','bravo','charlie','delta'];
+const INTERVAL = [3.02, 4.97, 4.98, 5.01];
+const IMG = [];
+let NAMES = CONFIG.characters.map((c,i) => LS.get('ns_name_'+i) || c.name);
+let TITLE = LS.get('ns_title') || CONFIG.title;
+
+const ROOMS = {
+  stage:      {cam:'1A', name:'Show Stage',     mx:40, my:3,  bg:'radial-gradient(ellipse at 50% 15%,#4a3352 0%,#160e1a 55%,#050305 100%)'},
+  dining:     {cam:'1B', name:'Dining Area',    mx:36, my:22, bg:'linear-gradient(#161414 0 52%,transparent 52%),repeating-conic-gradient(#202020 0 25%,#0b0b0b 0 50%) 0 0/70px 70px'},
+  cove:       {cam:'1C', name:'The Cove',       mx:10, my:40, bg:'linear-gradient(#0c080e,#050305)'},
+  backstage:  {cam:'5',  name:'Backstage',      mx:2,  my:18, bg:'radial-gradient(ellipse at 30% 40%,#2a2a33 0%,#0a0a0d 70%)'},
+  restrooms:  {cam:'7',  name:'Restrooms',      mx:80, my:22, bg:'linear-gradient(90deg,#1b2224 0 30%,#0e1314 30% 33%,#1b2224 33%)'},
+  kitchen:    {cam:'6',  name:'Kitchen',        mx:80, my:52, bg:'#000'},
+  westhall:   {cam:'2A', name:'West Hall',      mx:24, my:56, bg:'radial-gradient(ellipse at 50% 50%,#1e1c18 0%,#070706 45%,#000 70%)'},
+  westcorner: {cam:'2B', name:'W. Hall Corner', mx:24, my:78, bg:'linear-gradient(90deg,#15130f,#26221b 60%,#0b0a08)'},
+  closet:     {cam:'3',  name:'Supply Closet',  mx:2,  my:62, bg:'radial-gradient(circle at 50% 30%,#2a261c,#080706 65%)'},
+  easthall:   {cam:'4A', name:'East Hall',      mx:58, my:56, bg:'radial-gradient(ellipse at 50% 50%,#1c1e1a 0%,#060706 45%,#000 70%)'},
+  eastcorner: {cam:'4B', name:'E. Hall Corner', mx:58, my:78, bg:'linear-gradient(270deg,#15130f,#26221b 60%,#0b0a08)'}
+};
+const GRAPH = {
+  alpha:   {stage:['dining'], dining:['restrooms'], restrooms:['kitchen'], kitchen:['easthall'], easthall:['eastcorner'], eastcorner:['doorR']},
+  bravo:   {stage:['dining','backstage'], dining:['backstage','westhall'], backstage:['dining','westhall'], westhall:['closet','westcorner'], closet:['westhall','westcorner'], westcorner:['doorL','closet']},
+  charlie: {stage:['dining'], dining:['restrooms','kitchen'], restrooms:['kitchen','easthall'], kitchen:['restrooms','easthall'], easthall:['eastcorner','kitchen','dining'], eastcorner:['doorR','easthall']}
+};
+const RETREAT = {alpha:'easthall', bravo:'dining', charlie:'dining'};
+const DOOR = {alpha:'R', bravo:'L', charlie:'R'};
+
+/* ---------------- images ---------------- */
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function placeholder(i){
+  const h = CONFIG.characters[i].hue, L = esc((NAMES[i]||'?').slice(0,1));
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 400'><defs><radialGradient id='g' cx='50%' cy='35%' r='70%'><stop offset='0' stop-color='hsl(${h},35%,24%)'/><stop offset='1' stop-color='#050505'/></radialGradient></defs><rect width='300' height='400' fill='url(#g)'/><ellipse cx='150' cy='150' rx='82' ry='98' fill='#0a0a0a'/><path d='M20 400 Q35 255 150 245 Q265 255 280 400Z' fill='#0a0a0a'/><circle cx='117' cy='140' r='12' fill='#fff'/><circle cx='183' cy='140' r='12' fill='#fff'/><circle cx='117' cy='141' r='5' fill='hsl(${h},90%,50%)'/><circle cx='183' cy='141' r='5' fill='hsl(${h},90%,50%)'/><path d='M105 200 Q150 225 195 200' stroke='#ddd' stroke-width='4' fill='none'/><text x='150' y='370' font-family='monospace' font-size='34' fill='hsl(${h},60%,45%)' text-anchor='middle'>${L}</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+function tryLoad(src){
+  return new Promise(res => {
+    if(!src) return res(false);
+    const im = new Image(); let done = false;
+    const t = setTimeout(() => { if(!done){ done = true; res(false); } }, 4000);
+    im.onload = () => { if(!done){ done = true; clearTimeout(t); res(true); } };
+    im.onerror = () => { if(!done){ done = true; clearTimeout(t); res(false); } };
+    im.src = src;
+  });
+}
+async function resolveImage(i){
+  const ls = LS.get('ns_img_'+i);
+  if(ls){ IMG[i] = ls; return; }
+  IMG[i] = (await tryLoad(CONFIG.characters[i].img)) ? CONFIG.characters[i].img : placeholder(i);
+}
+function fileToDataURL(file, max = 640){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const s = Math.min(1, max / Math.max(im.width, im.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(im.width*s); c.height = Math.round(im.height*s);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', .82));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(); };
+    im.src = url;
+  });
+}
+
+/* ---------------- audio (all generated, no files needed) ---------------- */
+const sfx = (() => {
+  let ctx = null, master = null, muted = LS.get('ns_mute') === '1', hum = null, buzz = null, music = null;
+  function init(){
+    if(!ctx){
+      try{ ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = muted ? 0 : .8; master.connect(ctx.destination); }
+      catch(e){ return; }
+    }
+    if(ctx.state === 'suspended') ctx.resume();
+  }
+  function noise(dur, {vol=.3, type='lowpass', freq=1000, q=1, when=0} = {}){
+    if(!ctx) return;
+    const n = Math.floor(ctx.sampleRate*dur), b = ctx.createBuffer(1, n, ctx.sampleRate), ch = b.getChannelData(0);
+    for(let i=0;i<n;i++) ch[i] = Math.random()*2-1;
+    const s = ctx.createBufferSource(); s.buffer = b;
+    const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ctx.createGain(), t = ctx.currentTime + when;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t+.005); g.gain.exponentialRampToValueAtTime(.0001, t+dur);
+    s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t+dur+.05);
+  }
+  function tone(freq, dur, {type='sine', vol=.2, to=null, when=0} = {}){
+    if(!ctx) return;
+    const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + when;
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if(to) o.frequency.exponentialRampToValueAtTime(to, t+dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t+.01); g.gain.exponentialRampToValueAtTime(.0001, t+dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+.05);
+  }
+  return {
+    init,
+    get muted(){ return muted; },
+    toggleMute(){ muted = !muted; LS.set('ns_mute', muted?'1':'0'); if(master) master.gain.value = muted ? 0 : .8; return muted; },
+    door(){ noise(.3,{freq:600,vol:.5}); tone(90,.3,{type:'square',vol:.12,to:40}); },
+    flip(){ noise(.07,{type:'highpass',freq:2500,vol:.2}); },
+    blip(){ tone(880,.05,{type:'square',vol:.05}); },
+    err(){ tone(150,.18,{type:'square',vol:.1}); },
+    step(){ for(let k=0;k<3;k++) noise(.12,{freq:200,vol:.22,when:k*.38}); },
+    stinger(){ [233,247,262].forEach(f => tone(f,1.1,{type:'sawtooth',vol:.07})); noise(.6,{freq:900,vol:.15}); },
+    bang(){ for(let k=0;k<3;k++){ tone(70,.25,{type:'square',vol:.25,to:35,when:k*.22}); noise(.2,{freq:400,vol:.45,when:k*.22}); } },
+    run(){ for(let k=0;k<8;k++) noise(.08,{freq:300,vol:.3,when:k*.18}); },
+    clatter(){ for(let k=0;k<4;k++) tone(1500+Math.random()*2500,.15,{type:'triangle',vol:.05,when:Math.random()*.4}); },
+    scream(){ for(let k=0;k<6;k++) tone(200+Math.random()*500,1.6,{type:'sawtooth',vol:.11,to:700+Math.random()*1300}); noise(1.6,{type:'bandpass',freq:1800,q:.6,vol:.7}); },
+    chime(){ [523,659,784,1047,784,1047].forEach((f,k) => tone(f,1.6,{type:'triangle',vol:.18,when:k*.33})); },
+    powerDown(){ tone(220,1.8,{type:'sawtooth',vol:.12,to:30}); },
+    humStart(){ if(!ctx||hum) return; const o=ctx.createOscillator(), o2=ctx.createOscillator(), g=ctx.createGain(); o.frequency.value=55; o2.frequency.value=110.5; g.gain.value=.035; o.connect(g); o2.connect(g); g.connect(master); o.start(); o2.start(); hum={o,o2}; },
+    humStop(){ if(hum){ try{ hum.o.stop(); hum.o2.stop(); }catch(e){} hum = null; } },
+    buzzSet(on){ if(!ctx) return; if(on && !buzz){ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sawtooth'; o.frequency.value=120; g.gain.value=.022; o.connect(g); g.connect(master); o.start(); buzz=o; } else if(!on && buzz){ try{ buzz.stop(); }catch(e){} buzz = null; } },
+    musicStart(){ // music-box Für Elise (public domain)
+      const notes=[659,622,659,622,659,494,587,523,440,0,262,330,440,494,0,330,415,494,523,0]; let k=0;
+      this.musicStop(); music = setInterval(() => { const f = notes[k++ % notes.length]; if(f) tone(f*2,.35,{type:'triangle',vol:.12}); }, 260);
+    },
+    musicStop(){ if(music){ clearInterval(music); music = null; } },
+    stopAll(){ this.humStop(); this.buzzSet(false); this.musicStop(); }
+  };
+})();
+
+/* ---------------- game state ---------------- */
+let G = null;
+const roll = ai => Math.floor(Math.random()*20)+1 <= ai;
+const getProg = () => Math.max(1, Math.min(6, parseInt(LS.get('ns_night')||'1',10) || 1));
+
+function startNight(n, customAI){
+  sfx.init();
+  const ai = customAI || NIGHTS[n];
+  G = {
+    night:n, custom:!!customAI, t:0, power:100,
+    doorL:false, doorR:false, lightL:false, lightR:false, cam:false, curCam:'stage',
+    over:false, paused:true, powerOut:false, po:null, bangs:0, glitch:0, camLock:0, clatT:0, lastHour:0, camDirty:true,
+    ch: ai.map((a,i) => ({ai:a, loc: i===3 ? 'cove' : 'stage', timer:Math.random()*2, inOffice:false, officeT:0, seen:false, stage:0, s3:0, running:false, runT:0}))
+  };
+  hideScreens();
+  $('#game').className = 'show';
+  $('#posterImg').src = IMG[0];
+  $('#js').classList.remove('show');
+  const intro = $('#intro');
+  intro.innerHTML = `<div class="big">12:00 AM</div><div style="font-size:24px">${G.custom ? 'Custom Night' : 'Night '+n}</div>` +
+    (n===1 && !G.custom ? `<div class="small" style="margin-top:18px">Watch the cameras. Check the door lights. Close a door if someone's there, but doors, lights and cameras all drain power. Survive until 6 AM.</div>` : '');
+  intro.classList.add('show');
+  sfx.humStart();
+  const g = G;
+  setTimeout(() => { if(G === g){ G.paused = false; intro.classList.remove('show'); } }, n===1 && !G.custom ? 4200 : 2600);
+}
+
+function usage(){ return 1 + (G.doorL?1:0) + (G.doorR?1:0) + ((G.lightL||G.lightR)?1:0) + (G.cam?1:0); }
+function sideBlocked(s){ return [0,1,2].some(i => G.ch[i].inOffice && DOOR[ROLE[i]] === s); }
+function atDoor(s){ for(const i of [0,1,2]) if(G.ch[i].loc === 'door'+s && !G.ch[i].inOffice) return i; return -1; }
+
+function setLoc(i, loc){
+  const c = G.ch[i], old = c.loc;
+  c.loc = loc; c.seen = false;
+  if(G.cam && (G.curCam === old || G.curCam === loc)) G.glitch = 1.5;
+  G.camDirty = true;
+  if(loc === 'westcorner' || loc === 'eastcorner' || loc.startsWith('door')) sfx.step();
+  if(loc === 'doorL' && G.lightL || loc === 'doorR' && G.lightR){ c.seen = true; sfx.stinger(); }
+}
+function move(i){
+  const c = G.ch[i], r = ROLE[i];
+  if(r === 'alpha'){
+    if(G.cam && G.curCam === c.loc) return;                                   // frozen while watched
+    if(c.loc === 'stage' && (G.ch[1].loc === 'stage' || G.ch[2].loc === 'stage')) return; // waits for the others
+  }
+  if(c.loc === 'doorL' || c.loc === 'doorR'){
+    const closed = c.loc === 'doorL' ? G.doorL : G.doorR;
+    if(closed){ setLoc(i, RETREAT[r]); }
+    else { c.inOffice = true; c.officeT = 0; if(c.loc === 'doorL') G.lightL = false; else G.lightR = false; }
+    return;
+  }
+  const opts = GRAPH[r][c.loc];
+  setLoc(i, opts[Math.floor(Math.random()*opts.length)]);
+}
+function startRun(){
+  const d = G.ch[3];
+  d.running = true; d.s3 = 0;
+  d.runT = (G.cam && G.curCam === 'westhall') ? 1.4 : 2.4;
+  G.camDirty = true; sfx.run();
+}
+function deltaArrive(){
+  const d = G.ch[3]; d.running = false;
+  if(G.doorL){
+    sfx.bang(); G.power -= 1 + 5*G.bangs; G.bangs++;
+    d.stage = Math.random() < .5 ? 0 : 1; G.camDirty = true;
+  } else jumpscare(3);
+}
+
+function tick(dt){
+  G.t += dt;
+  const h = Math.floor(G.t / HOUR);
+  if(h >= 6){ win(); return; }
+  if(h !== G.lastHour){
+    G.lastHour = h;
+    if(!G.custom){
+      if(h === 2) G.ch[1].ai++;
+      if(h === 3 || h === 4){ G.ch[1].ai++; G.ch[2].ai++; G.ch[3].ai++; }
+    }
+  }
+  G.glitch = Math.max(0, G.glitch - dt*1.6);
+
+  if(G.powerOut){
+    G.po.t -= dt;
+    if(G.po.t <= 0){
+      if(G.po.stage === 0){ G.po.stage = 1; G.po.t = 5 + Math.random()*13; sfx.musicStart(); }
+      else if(G.po.stage === 1){ G.po.stage = 2; G.po.t = 1.5 + Math.random()*4; sfx.musicStop(); }
+      else jumpscare(0);
+    }
+    return;
+  }
+
+  G.power -= usage() * 0.075 * (1 + 0.04*(G.night-1)) * dt;
+  if(G.power <= 0){ powerOut(); return; }
+
+  for(const i of [0,1,2]){
+    const c = G.ch[i];
+    if(c.inOffice){
+      c.officeT += dt;
+      if((!G.cam && c.officeT > 2.2) || c.officeT > 15){ jumpscare(i); return; }
+      continue;
+    }
+    c.timer += dt;
+    if(c.timer >= INTERVAL[i]){ c.timer -= INTERVAL[i]; if(roll(c.ai)) move(i); }
+  }
+
+  const d = G.ch[3];
+  if(d.running){ d.runT -= dt; if(d.runT <= 0){ deltaArrive(); if(G.over) return; } }
+  else {
+    if(G.camLock > 0) G.camLock -= dt;
+    d.timer += dt;
+    if(d.timer >= INTERVAL[3]){
+      d.timer -= INTERVAL[3];
+      if(!G.cam && G.camLock <= 0 && roll(d.ai)){
+        if(d.stage < 3){ d.stage++; G.camDirty = true; } else startRun();
+      }
+    }
+    if(d.stage === 3 && !d.running){
+      d.s3 += dt;
+      if(d.s3 > 25 || (G.cam && G.curCam === 'westhall')) startRun();
+    }
+  }
+
+  if(G.cam && G.curCam === 'kitchen' && [0,1,2].some(i => G.ch[i].loc === 'kitchen')){
+    G.clatT -= dt; if(G.clatT <= 0){ sfx.clatter(); G.clatT = .6 + Math.random()*.8; }
+  }
+}
+
+function powerOut(){
+  G.powerOut = true; G.power = 0;
+  if(G.doorL || G.doorR) sfx.door();
+  G.doorL = G.doorR = G.lightL = G.lightR = false;
+  if(G.cam){ G.cam = false; sfx.flip(); }
+  G.po = {stage:0, t:3 + Math.random()*12};
+  sfx.humStop(); sfx.powerDown();
+}
+function jumpscare(i){
+  if(G.over) return;
+  G.over = true; G.cam = false;
+  sfx.stopAll();
+  $('#jsImg').src = IMG[i];
+  $('#js').classList.add('show');
+  sfx.scream();
+  const g = G;
+  setTimeout(() => {
+    if(G !== g) return;
+    $('#js').classList.remove('show');
+    $('#overMsg').textContent = `${NAMES[i]} got you at ${Math.floor(g.t/HOUR) || 12} AM.`;
+    showScreen('over');
+  }, 1800);
+}
+function win(){
+  G.over = true; G.cam = false;
+  sfx.stopAll(); sfx.chime();
+  let msg = 'You survived the night.';
+  if(!G.custom){
+    const next = Math.min(6, G.night + 1);
+    if(next > getProg()) LS.set('ns_night', String(next));
+    if(G.night === 5){ LS.set('ns_beat','1'); msg = 'You survived the whole week! Night 6 is now unlocked... if you dare.'; }
+    if(G.night === 6) msg = 'Night 6 cleared. You are unstoppable.';
+  } else msg = 'Custom night cleared!';
+  $('#winMsg').textContent = msg;
+  $('#wNext').style.display = (!G.custom && G.night < 6) ? '' : 'none';
+  setTimeout(() => showScreen('win'), 300);
+}
+
+/* ---------------- controls ---------------- */
+function toggleDoor(s){
+  if(!G || G.over || G.paused) return;
+  if(G.powerOut || sideBlocked(s)){ sfx.err(); return; }
+  G['door'+s] = !G['door'+s]; sfx.door();
+}
+function toggleLight(s){
+  if(!G || G.over || G.paused) return;
+  if(G.powerOut || sideBlocked(s)){ sfx.err(); return; }
+  const k = 'light'+s, other = s === 'L' ? 'lightR' : 'lightL';
+  G[k] = !G[k]; G[other] = false; sfx.blip();
+  if(G[k]){ const i = atDoor(s); if(i >= 0 && !G.ch[i].seen){ G.ch[i].seen = true; sfx.stinger(); } }
+}
+function toggleCam(){
+  if(!G || G.over || G.paused || G.powerOut) return;
+  G.cam = !G.cam; sfx.flip();
+  if(G.cam){ G.lightL = G.lightR = false; G.camDirty = true; G.glitch = .8; }
+  else G.camLock = .8 + Math.random() * Math.max(1, 10 - G.ch[3].ai*.4);
+}
+function switchCam(id){
+  if(!G || !G.cam) return;
+  G.curCam = id; G.glitch = 1; G.camDirty = true; sfx.blip();
+}
+
+/* ---------------- rendering ---------------- */
+const sc = $('#static'), sx = sc.getContext('2d'), sid = sx.createImageData(160, 90);
+function drawStatic(){
+  const d = sid.data;
+  for(let i=0;i<d.length;i+=4){ const v = Math.random()*255|0; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; }
+  sx.putImageData(sid, 0, 0);
+}
+function buildMap(){
+  const map = $('#map');
+  for(const [id, R] of Object.entries(ROOMS)){
+    const b = document.createElement('button');
+    b.textContent = R.cam; b.dataset.id = id; b.title = R.name;
+    b.style.left = R.mx + '%'; b.style.top = R.my + '%';
+    b.onclick = () => switchCam(id);
+    map.appendChild(b);
+  }
+}
+function camImg(i, cls, leftPct){
+  const im = document.createElement('img');
+  im.src = IMG[i]; im.className = 'cimg ' + (cls||''); im.alt = '';
+  if(leftPct != null) im.style.left = leftPct + '%';
+  return im;
+}
+function renderCam(){
+  G.camDirty = false;
+  const id = G.curCam, R = ROOMS[id], box = $('#camChars');
+  $('#camLabel').textContent = 'CAM ' + R.cam + ' — ' + R.name;
+  $('#roomBg').style.background = R.bg;
+  box.innerHTML = ''; let note = '';
+  document.querySelectorAll('#map button').forEach(b => b.classList.toggle('cur', b.dataset.id === id));
+  if(id === 'kitchen'){
+    note = 'CAMERA DISABLED — AUDIO ONLY';
+  } else if(id === 'cove'){
+    const d = G.ch[3], wrap = document.createElement('div'); wrap.className = 'cove';
+    const w = [50, 43, 30, 14, 14][d.stage] ?? 14;
+    if(d.stage < 3 && !d.running) wrap.appendChild(camImg(3, d.stage === 2 ? 's2' : '', 50));
+    const l = document.createElement('div'); l.className = 'curtain l'; l.style.width = w + '%';
+    const r = document.createElement('div'); r.className = 'curtain r'; r.style.width = w + '%';
+    const s = document.createElement('div'); s.className = 'sign'; s.textContent = 'SORRY! OUT OF ORDER';
+    wrap.append(l, r, s); box.appendChild(wrap);
+  } else {
+    const here = [0,1,2].filter(i => G.ch[i].loc === id && !G.ch[i].inOffice);
+    const close = id === 'westcorner' || id === 'eastcorner';
+    here.forEach((i,k) => box.appendChild(camImg(i, close ? 'close' : '', 50 + (k - (here.length-1)/2) * 28)));
+    if(id === 'westhall' && G.ch[3].running) box.appendChild(camImg(3, 'runner', 50));
+  }
+  $('#camNote').textContent = note;
+}
+function setLurker(el, i){
+  const want = i >= 0 ? IMG[i] : '';
+  if(el.dataset.src !== want){ el.dataset.src = want; if(want) el.src = want; }
+  el.classList.toggle('on', i >= 0);
+}
+function render(){
+  const h = Math.floor(G.t / HOUR);
+  $('#clock').textContent = (h === 0 ? 12 : Math.min(h,6)) + ' AM';
+  $('#nightLbl').textContent = G.custom ? 'Custom Night' : 'Night ' + G.night;
+  $('#power').textContent = Math.max(0, Math.ceil(G.power)) + '%';
+  const u = G.powerOut ? 0 : usage(), cols = ['#5d5','#5d5','#dd4','#e83','#e33'];
+  $('#usage').innerHTML = Array.from({length:u}, (_,k) => `<span style="background:${cols[Math.min(k,4)]}"></span>`).join('');
+
+  $('#game').classList.toggle('po', G.powerOut);
+  $('#game').classList.toggle('po2', !!(G.powerOut && G.po.stage === 2));
+  $('#dwL').classList.toggle('lit', G.lightL);
+  $('#dwR').classList.toggle('lit', G.lightR);
+  $('#dwL').classList.toggle('po', !!(G.powerOut && G.po.stage === 1));
+  $('#shL').classList.toggle('closed', G.doorL);
+  $('#shR').classList.toggle('closed', G.doorR);
+  if(G.powerOut && G.po.stage === 1) setLurker($('#lurkL'), 0);
+  else setLurker($('#lurkL'), G.lightL ? atDoor('L') : -1);
+  setLurker($('#lurkR'), G.lightR ? atDoor('R') : -1);
+  sfx.buzzSet(G.lightL || G.lightR);
+
+  for(const s of ['L','R']){
+    const dead = G.powerOut || sideBlocked(s);
+    $('#bDoor'+s).classList.toggle('on', G['door'+s]);
+    $('#bLight'+s).classList.toggle('on', G['light'+s]);
+    $('#bDoor'+s).classList.toggle('dead', dead);
+    $('#bLight'+s).classList.toggle('dead', dead);
+  }
+  $('#camBtn').style.display = G.powerOut ? 'none' : '';
+  $('#camBtn').textContent = G.cam ? '▼ LOWER CAMERAS ▼' : '▲ CAMERAS ▲';
+  $('#cams').classList.toggle('show', G.cam);
+  if(G.cam){
+    if(G.camDirty) renderCam();
+    drawStatic();
+    sc.style.opacity = Math.min(1, .16 + G.glitch*.7);
+    $('#camChars').style.opacity = G.glitch > .9 ? 0 : 1;
+  }
+}
+
+let last = 0;
+function loop(ts){
+  const dt = Math.min(.1, (ts - last)/1000 || 0); last = ts;
+  if(G && !G.over && !G.paused) tick(dt);
+  if(G && $('#game').classList.contains('show')) render();
+  requestAnimationFrame(loop);
+}
+
+/* ---------------- screens ---------------- */
+function hideScreens(){ document.querySelectorAll('.screen').forEach(s => s.classList.remove('show')); }
+function showScreen(id){
+  hideScreens(); $('#'+id).classList.add('show');
+  if(id !== 'over' && id !== 'win'){ $('#game').className = ''; }
+  if(id === 'menu') updateMenu();
+}
+function quitToMenu(){ if(G){ G.over = true; } sfx.stopAll(); G = null; showScreen('menu'); }
+function updateMenu(){
+  document.title = TITLE;
+  $('#menuTitle').textContent = TITLE;
+  $('#menuBg').src = IMG[0] || '';
+  const p = getProg();
+  $('#mCont').style.display = p > 1 ? '' : 'none';
+  $('#mCont').textContent = 'Continue — Night ' + p;
+}
+function buildSetup(){
+  $('#titleIn').value = TITLE;
+  const wrap = $('#setupCards'); wrap.innerHTML = '';
+  CONFIG.characters.forEach((c,i) => {
+    const card = document.createElement('div'); card.className = 'card';
+    const img = document.createElement('img'); img.src = IMG[i]; img.alt = '';
+    const name = document.createElement('input'); name.type = 'text'; name.maxLength = 16; name.value = NAMES[i];
+    name.oninput = () => { NAMES[i] = name.value.trim() || c.name; LS.set('ns_name_'+i, NAMES[i]); };
+    const role = document.createElement('div'); role.className = 'role'; role.textContent = c.role;
+    const up = document.createElement('label'); up.className = 'up'; up.textContent = 'Choose photo…';
+    const file = document.createElement('input'); file.type = 'file'; file.accept = 'image/*';
+    const status = document.createElement('div'); status.className = 'small';
+    file.onchange = async () => {
+      if(!file.files[0]) return;
+      try{
+        const data = await fileToDataURL(file.files[0]);
+        IMG[i] = data; img.src = data;
+        status.textContent = LS.set('ns_img_'+i, data) ? 'Saved.' : 'Using it this session (browser storage is full or blocked).';
+      }catch(e){ status.textContent = 'Could not read that image.'; }
+    };
+    up.appendChild(file);
+    const reset = document.createElement('button'); reset.className = 'menuBtn'; reset.style.fontSize = '13px'; reset.textContent = 'Reset';
+    reset.onclick = async () => { LS.del('ns_img_'+i); await resolveImage(i); img.src = IMG[i]; status.textContent = ''; };
+    card.append(img, name, role, up, reset, status);
+    wrap.appendChild(card);
+  });
+}
+function buildCustom(){
+  const wrap = $('#customCards'); wrap.innerHTML = '';
+  const saved = (LS.get('ns_custom') || '').split(',').map(Number);
+  CONFIG.characters.forEach((c,i) => {
+    const card = document.createElement('div'); card.className = 'card';
+    const img = document.createElement('img'); img.src = IMG[i]; img.alt = '';
+    const nm = document.createElement('div'); nm.textContent = NAMES[i];
+    const val = document.createElement('div'); val.className = 'aiVal';
+    const r = document.createElement('input'); r.type = 'range'; r.min = 0; r.max = 20;
+    r.value = Number.isFinite(saved[i]) ? saved[i] : 5; r.dataset.i = i;
+    val.textContent = r.value; r.oninput = () => val.textContent = r.value;
+    card.append(img, nm, val, r); wrap.appendChild(card);
+  });
+}
+
+/* ---------------- wiring ---------------- */
+$('#mNew').onclick = () => { LS.set('ns_night','1'); startNight(1); };
+$('#mCont').onclick = () => startNight(getProg());
+$('#mSetup').onclick = () => { buildSetup(); showScreen('setup'); };
+$('#mCustom').onclick = () => { buildCustom(); showScreen('custom'); };
+$('#setupBack').onclick = () => { TITLE = $('#titleIn').value.trim() || CONFIG.title; LS.set('ns_title', TITLE); showScreen('menu'); };
+$('#cBack').onclick = () => showScreen('menu');
+$('#cStart').onclick = () => {
+  const ai = [...document.querySelectorAll('#customCards input[type=range]')].map(r => +r.value);
+  LS.set('ns_custom', ai.join(',')); startNight(7, ai);
+};
+$('#oRetry').onclick = () => G && (G.custom ? startNight(7, G.ch.map((c,i)=>(LS.get('ns_custom')||'5,5,5,5').split(',').map(Number)[i])) : startNight(G.night));
+$('#oMenu').onclick = quitToMenu;
+$('#wNext').onclick = () => startNight(Math.min(6, G.night + 1));
+$('#wMenu').onclick = quitToMenu;
+$('#quitBtn').onclick = () => { if(confirm('Quit to menu? This night will be lost.')) quitToMenu(); };
+$('#muteBtn').onclick = () => { $('#muteBtn').textContent = sfx.toggleMute() ? '🔇' : '🔊'; };
+$('#muteBtn').textContent = sfx.muted ? '🔇' : '🔊';
+$('#bDoorL').onclick = () => toggleDoor('L');
+$('#bDoorR').onclick = () => toggleDoor('R');
+$('#bLightL').onclick = () => toggleLight('L');
+$('#bLightR').onclick = () => toggleLight('R');
+$('#camBtn').onclick = toggleCam;
+document.addEventListener('keydown', e => {
+  if(e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if(k === 'm'){ $('#muteBtn').click(); return; }
+  if(!G || !$('#game').classList.contains('show')) return;
+  if(k === 'q') toggleDoor('L');
+  else if(k === 'e') toggleDoor('R');
+  else if(k === 'a') toggleLight('L');
+  else if(k === 'd') toggleLight('R');
+  else if(k === ' ' || k === 's'){ e.preventDefault(); toggleCam(); }
+});
+document.addEventListener('pointerdown', () => sfx.init(), {once:true});
+
+(async function boot(){
+  await Promise.all([0,1,2,3].map(resolveImage));
+  buildMap(); updateMenu();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
