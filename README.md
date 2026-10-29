@@ -22,4 +22,6 @@ You can also click all of these on screen, so the game works on phones too.
 
 Doors, lights and cameras all drain power. If the power hits 0%, the lights go out… and you'd better hope it's almost 6 AM.
 
-Beat Nights 1–5 to unlock Night 6. **Custom Night** lets you set each animatronic's difficulty from 0 to 20.
+*CUSTOM NIGHT* is unlocked, meaning you don't need to beat night 1-5.
+
+This game was made as a joke, and was intended for no harm to whomever it's about. 
